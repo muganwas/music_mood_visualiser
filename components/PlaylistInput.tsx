@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, FormEvent } from "react";
+import type { UserCredentials } from "@/stores/credentials";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -9,8 +10,8 @@ interface PlaylistPreview {
   name: string;
   image: string;
   owner: string;
-  trackCount: number;   // from playlist metadata (tracks.total)
-  hasItems: boolean;     // true if we retrieved at least 1 track
+  trackCount: number;
+  hasItems: boolean;
 }
 
 type UrlState =
@@ -22,6 +23,8 @@ type UrlState =
 
 interface Props {
   onAnalyze: (payload: { type: "link"; url: string }) => void;
+  credentials: UserCredentials;
+  onPlaylistFound: (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string }) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -43,7 +46,7 @@ function extractIdLocally(input: string): string | null {
 
 // ── Component ────────────────────────────────────────────────
 
-export default function PlaylistInput({ onAnalyze }: Props) {
+export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound }: Props) {
   const [url, setUrl] = useState("");
   const [urlState, setUrlState] = useState<UrlState>({ status: "idle" });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,7 +81,17 @@ export default function PlaylistInput({ onAnalyze }: Props) {
       setUrlState({ status: "checking" });
 
       try {
-        const res = await fetch(`/api/spotify?playlist=${encodeURIComponent(url.trim())}&preview=true`);
+        const res = await fetch(
+          `/api/spotify?playlist=${encodeURIComponent(url.trim())}&preview=true`,
+          {
+            headers: {
+              "x-spotify-client-id": credentials.spotifyClientId,
+              "x-spotify-client-secret": credentials.spotifyClientSecret,
+              "x-spotify-refresh-token": credentials.spotifyRefreshToken,
+              "x-spotify-market": credentials.spotifyMarket,
+            },
+          },
+        );
         const data = await res.json();
 
         if (!res.ok || data.error) {
@@ -96,6 +109,16 @@ export default function PlaylistInput({ onAnalyze }: Props) {
             trackCount: data.playlist.trackCount,
             hasItems: data.playlist.hasItems,
           },
+        });
+
+        // Save to history
+        onPlaylistFound({
+          id: data.playlist.id,
+          name: data.playlist.name,
+          image: data.playlist.image,
+          owner: data.playlist.owner,
+          trackCount: data.playlist.trackCount,
+          url: url.trim(),
         });
       } catch {
         setUrlState({ status: "error", message: "Network error — check your connection." });

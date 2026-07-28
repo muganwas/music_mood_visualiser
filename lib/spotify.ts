@@ -1,34 +1,54 @@
 /**
  * Spotify API helper.
- * - Client Credentials (server-to-server) for public playlist metadata.
+ * - Client Credentials for public playlist metadata.
  * - Refresh Token flow for user-scoped access (required for /items endpoint).
- * Requires SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, and SPOTIFY_REFRESH_TOKEN in .env.local.
+ *
+ * Credentials are passed explicitly (from user's browser localStorage via headers)
+ * with fallback to SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET / SPOTIFY_REFRESH_TOKEN env vars.
  */
 
 const TOKEN_URL = "https://accounts.spotify.com/api/token";
 
-let cachedClientToken: { access_token: string; expires_at: number } | null = null;
-let cachedUserToken: { access_token: string; expires_at: number } | null = null;
-
-function basicAuth(): string {
-  const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error("Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET env vars");
-  }
-  return Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+export interface SpotifyCredentials {
+  clientId: string;
+  clientSecret: string;
+  refreshToken?: string;
+  market?: string;
 }
 
-/** Server-to-server token — works for public playlist metadata. */
-async function getAccessToken(): Promise<string> {
-  if (cachedClientToken && Date.now() < cachedClientToken.expires_at - 60_000) {
-    return cachedClientToken.access_token;
+/** Extract Spotify credentials from headers (user-provided) or env vars (host-provided). */
+export function getSpotifyCredentials(headers: Headers): SpotifyCredentials {
+  return {
+    clientId: headers.get("x-spotify-client-id") || process.env.SPOTIFY_CLIENT_ID || "",
+    clientSecret: headers.get("x-spotify-client-secret") || process.env.SPOTIFY_CLIENT_SECRET || "",
+    refreshToken: headers.get("x-spotify-refresh-token") || process.env.SPOTIFY_REFRESH_TOKEN || "",
+    market: headers.get("x-spotify-market") || process.env.SPOTIFY_MARKET || "",
+  };
+}
+
+// Simple token cache keyed by clientId
+const tokenCache = new Map<string, { access_token: string; expires_at: number }>();
+
+function cacheKey(creds: SpotifyCredentials, type: "client" | "user"): string {
+  return `${creds.clientId}:${type}`;
+}
+
+function basicAuth(creds: SpotifyCredentials): string {
+  if (!creds.clientId || !creds.clientSecret) {
+    throw new Error("Missing Spotify client ID or secret. Add them in Settings.");
   }
+  return Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString("base64");
+}
+
+async function getAccessToken(creds: SpotifyCredentials): Promise<string> {
+  const key = cacheKey(creds, "client");
+  const cached = tokenCache.get(key);
+  if (cached && Date.now() < cached.expires_at - 60_000) return cached.access_token;
 
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${basicAuth()}`,
+      Authorization: `Basic ${basicAuth(creds)}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
@@ -36,56 +56,53 @@ async function getAccessToken(): Promise<string> {
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Spotify client-credentials token error: ${res.status} ${err}`);
+    throw new Error(`Spotify auth error: ${res.status} ${err}`);
   }
 
   const data = await res.json();
-  cachedClientToken = {
+  tokenCache.set(key, {
     access_token: data.access_token,
     expires_at: Date.now() + data.expires_in * 1000,
-  };
+  });
 
-  return cachedClientToken.access_token;
+  return data.access_token;
 }
 
-/** User-scoped token via refresh token — required for /items endpoint. */
-async function getUserAccessToken(): Promise<string> {
-  if (cachedUserToken && Date.now() < cachedUserToken.expires_at - 60_000) {
-    return cachedUserToken.access_token;
-  }
+async function getUserAccessToken(creds: SpotifyCredentials): Promise<string> {
+  const key = cacheKey(creds, "user");
+  const cached = tokenCache.get(key);
+  if (cached && Date.now() < cached.expires_at - 60_000) return cached.access_token;
 
-  const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
-  if (!refreshToken) {
+  if (!creds.refreshToken) {
     throw new Error(
-      "Missing SPOTIFY_REFRESH_TOKEN — required to fetch playlist tracks. " +
-        "Get one via the Spotify Authorization Code flow with scopes: playlist-read-private, playlist-read-collaborative.",
+      "Missing Spotify refresh token. Go to Settings and add it, or get one via the Auth flow.",
     );
   }
 
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${basicAuth()}`,
+      Authorization: `Basic ${basicAuth(creds)}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: refreshToken,
+      refresh_token: creds.refreshToken,
     }),
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Spotify refresh-token error: ${res.status} ${err}`);
+    throw new Error(`Spotify refresh error: ${res.status} ${err}`);
   }
 
   const data = await res.json();
-  cachedUserToken = {
+  tokenCache.set(key, {
     access_token: data.access_token,
     expires_at: Date.now() + data.expires_in * 1000,
-  };
+  });
 
-  return cachedUserToken.access_token;
+  return data.access_token;
 }
 
 /**
@@ -135,8 +152,11 @@ export interface SpotifyPlaylistInfo {
 }
 
 /** Fetch playlist metadata (name, art, track count) without pulling all tracks. */
-export async function getPlaylistInfo(playlistId: string): Promise<SpotifyPlaylistInfo> {
-  const token = await getAccessToken();
+export async function getPlaylistInfo(
+  playlistId: string,
+  creds: SpotifyCredentials,
+): Promise<SpotifyPlaylistInfo> {
+  const token = await getAccessToken(creds);
 
   const response = await fetch(
     `https://api.spotify.com/v1/playlists/${playlistId}`,
@@ -161,12 +181,12 @@ export async function getPlaylistInfo(playlistId: string): Promise<SpotifyPlayli
   };
 }
 
-/**
 /** Fetch all tracks from a Spotify playlist. */
 export async function getPlaylistTracks(
   playlistId: string,
+  creds: SpotifyCredentials,
 ): Promise<{ tracks: SpotifyTrack[]; total: number }> {
-  const token = await getUserAccessToken();
+  const token = await getUserAccessToken(creds);
   const tracks: SpotifyTrack[] = [];
 
   const params = new URLSearchParams({
@@ -175,8 +195,7 @@ export async function getPlaylistTracks(
       "next,total,items(item(name,artists(name),album(name,images(url)),preview_url,type),track(name,artists(name),album(name,images(url)),preview_url,type))",
   });
 
-  // Optional: set SPOTIFY_MARKET in .env to restrict to a country (e.g. US, GB)
-  const market = process.env.SPOTIFY_MARKET;
+  const market = creds.market || process.env.SPOTIFY_MARKET;
   if (market) params.set("market", market);
 
   let url: string | null =
@@ -217,8 +236,11 @@ export async function getPlaylistTracks(
 }
 
 /** Search tracks by name + artist (for manual / file-upload flows). */
-export async function searchTrack(query: string): Promise<SpotifyTrack | null> {
-  const token = await getAccessToken();
+export async function searchTrack(
+  query: string,
+  creds: SpotifyCredentials,
+): Promise<SpotifyTrack | null> {
+  const token = await getAccessToken(creds);
 
   const searchRes = await fetch(
     `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,

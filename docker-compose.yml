@@ -14,6 +14,7 @@ services:
       - ./components:/app/components
       - ./lib:/app/lib
       - ./public:/app/public
+      - ./stores:/app/stores
       - ./package.json:/app/package.json
       - ./tsconfig.json:/app/tsconfig.json
       - ./next.config.ts:/app/next.config.ts

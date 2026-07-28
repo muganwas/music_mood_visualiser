@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractPlaylistId, getPlaylistTracks, searchTrack } from "@/lib/spotify";
+import { extractPlaylistId, getPlaylistTracks, searchTrack, getSpotifyCredentials } from "@/lib/spotify";
 import { analyzeMood } from "@/lib/deepseek";
 
 export async function POST(req: NextRequest) {
@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
       songs?: string[];
     };
 
+    const creds = getSpotifyCredentials(req.headers);
+    const deepseekKey = req.headers.get("x-deepseek-api-key") || process.env.DEEPSEEK_API_KEY || "";
+
     let tracks: { name: string; artist: string }[] = [];
 
     // ── Resolve songs depending on input type ──
@@ -19,13 +22,13 @@ export async function POST(req: NextRequest) {
       if (!playlistId) {
         return NextResponse.json({ error: "Could not parse playlist ID from URL" }, { status: 400 });
       }
-      const { tracks: spotifyTracks } = await getPlaylistTracks(playlistId);
+      const { tracks: spotifyTracks } = await getPlaylistTracks(playlistId, creds);
       tracks = spotifyTracks.map((t) => ({ name: t.name, artist: t.artist }));
     } else if ((type === "file" || type === "manual") && rawSongs?.length) {
       // Search Spotify for each song string to enrich with artist info.
       const results = await Promise.all(
         rawSongs.map(async (q) => {
-          const match = await searchTrack(q);
+          const match = await searchTrack(q, creds);
           return match
             ? { name: match.name, artist: match.artist }
             : { name: q, artist: "Unknown" }; // fallback if not found
@@ -41,7 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── AI mood analysis ──
-    const analysis = await analyzeMood(tracks);
+    const analysis = await analyzeMood(tracks, deepseekKey);
 
     return NextResponse.json({
       tracks: tracks.slice(0, 5), // preview of first 5

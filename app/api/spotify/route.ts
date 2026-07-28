@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getPlaylistTracks,
   getPlaylistInfo,
+  getSpotifyCredentials,
   extractPlaylistId,
   searchTrack,
 } from "@/lib/spotify";
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
   const playlistUrl = searchParams.get("playlist");
   const previewOnly = searchParams.get("preview") === "true";
   const query = searchParams.get("q");
+  const creds = getSpotifyCredentials(req.headers);
 
   try {
     if (playlistUrl) {
@@ -24,10 +26,10 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Invalid Spotify playlist URL" }, { status: 400 });
       }
 
-      const info = await getPlaylistInfo(id);
+      const info = await getPlaylistInfo(id, creds);
 
       if (previewOnly) {
-        const { total, tracks } = await getPlaylistTracks(id);
+        const { total, tracks } = await getPlaylistTracks(id, creds);
         return NextResponse.json({
           playlist: {
             ...info,
@@ -37,12 +39,12 @@ export async function GET(req: NextRequest) {
         });
       }
 
-      const { tracks } = await getPlaylistTracks(id);
+      const { tracks } = await getPlaylistTracks(id, creds);
       return NextResponse.json({ playlist: info, tracks });
     }
 
     if (query) {
-      const track = await searchTrack(query);
+      const track = await searchTrack(query, creds);
       return NextResponse.json({ track: track ?? null });
     }
 

@@ -28,9 +28,12 @@ const SYSTEM_PROMPT = `You are a music mood analyst. Given a list of songs (titl
 
 Respond with ONLY the JSON object, no markdown or extra text.`;
 
-export async function analyzeMood(songs: { name: string; artist: string }[]): Promise<MoodAnalysis> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) throw new Error("Missing DEEPSEEK_API_KEY env var");
+export async function analyzeMood(
+  songs: { name: string; artist: string }[],
+  apiKey?: string,
+): Promise<MoodAnalysis> {
+  const key = apiKey || process.env.DEEPSEEK_API_KEY;
+  if (!key) throw new Error("Missing DeepSeek API key. Add it in Settings.");
 
   const songList = songs
     .map((s) => `"${s.name}" by ${s.artist}`)
@@ -40,7 +43,7 @@ export async function analyzeMood(songs: { name: string; artist: string }[]): Pr
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
       model: "deepseek-chat",

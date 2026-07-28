@@ -4,6 +4,9 @@ import { useState } from "react";
 import PlaylistInput from "@/components/PlaylistInput";
 import FileUpload from "@/components/FileUpload";
 import SongList from "@/components/SongList";
+import PlaylistHistory from "@/components/profile/PlaylistHistory";
+import { useCredentials } from "@/stores/CredentialsContext";
+import { usePlaylists } from "@/stores/PlaylistContext";
 
 type InputMode = "link" | "upload" | "manual";
 
@@ -11,6 +14,8 @@ export default function Home() {
   const [mode, setMode] = useState<InputMode>("link");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<object | null>(null);
+  const { credentials } = useCredentials();
+  const { addPlaylist } = usePlaylists();
 
   const handleAnalyze = async (payload: object) => {
     setLoading(true);
@@ -18,7 +23,14 @@ export default function Home() {
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-spotify-client-id": credentials.spotifyClientId,
+          "x-spotify-client-secret": credentials.spotifyClientSecret,
+          "x-spotify-refresh-token": credentials.spotifyRefreshToken,
+          "x-spotify-market": credentials.spotifyMarket,
+          "x-deepseek-api-key": credentials.deepseekApiKey,
+        },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -28,6 +40,10 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePlaylistFound = (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string }) => {
+    addPlaylist(info);
   };
 
   return (
@@ -42,6 +58,9 @@ export default function Home() {
           the vibe.
         </p>
       </header>
+
+      {/* Playlist History */}
+      <PlaylistHistory />
 
       {/* Mode Tabs */}
       <div className="mb-10 flex justify-center gap-2">
@@ -68,7 +87,13 @@ export default function Home() {
 
       {/* Input Area */}
       <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 backdrop-blur">
-        {mode === "link" && <PlaylistInput onAnalyze={handleAnalyze} />}
+        {mode === "link" && (
+          <PlaylistInput
+            onAnalyze={handleAnalyze}
+            credentials={credentials}
+            onPlaylistFound={handlePlaylistFound}
+          />
+        )}
         {mode === "upload" && <FileUpload onAnalyze={handleAnalyze} />}
         {mode === "manual" && <SongList onAnalyze={handleAnalyze} />}
       </section>
