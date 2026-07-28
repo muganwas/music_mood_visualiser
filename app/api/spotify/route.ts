@@ -27,19 +27,17 @@ export async function GET(req: NextRequest) {
       const info = await getPlaylistInfo(id);
 
       if (previewOnly) {
-        // Fetch just 1 track to confirm the playlist is accessible and get real item count
-        const previewTracks = await getPlaylistTracks(id, { maxTracks: 1 });
+        const { total, tracks } = await getPlaylistTracks(id);
         return NextResponse.json({
           playlist: {
             ...info,
-            // Use the actual retrieval count from the items endpoint
-            retrievedCount: previewTracks.length,
-            hasItems: previewTracks.length > 0,
+            trackCount: total,
+            hasItems: tracks.length > 0,
           },
         });
       }
 
-      const tracks = await getPlaylistTracks(id);
+      const { tracks } = await getPlaylistTracks(id);
       return NextResponse.json({ playlist: info, tracks });
     }
 

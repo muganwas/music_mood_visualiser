@@ -162,20 +162,15 @@ export async function getPlaylistInfo(playlistId: string): Promise<SpotifyPlayli
 }
 
 /**
- * Fetch tracks from a Spotify playlist.
- * Pass `maxTracks` to stop early (e.g. 1 for a preview count check).
- */
+/** Fetch all tracks from a Spotify playlist. */
 export async function getPlaylistTracks(
   playlistId: string,
-  options?: { maxTracks?: number },
-): Promise<SpotifyTrack[]> {
+): Promise<{ tracks: SpotifyTrack[]; total: number }> {
   const token = await getUserAccessToken();
   const tracks: SpotifyTrack[] = [];
-  const max = options?.maxTracks ?? Infinity;
 
   const params = new URLSearchParams({
-    limit: String(Math.min(max, 50)),
-    // total is included so callers can read the real count from page.total
+    limit: "50",
     fields:
       "next,total,items(item(name,artists(name),album(name,images(url)),preview_url,type),track(name,artists(name),album(name,images(url)),preview_url,type))",
   });
@@ -186,6 +181,7 @@ export async function getPlaylistTracks(
 
   let url: string | null =
     `https://api.spotify.com/v1/playlists/${playlistId}/items?${params}`;
+  let total = 0;
 
   while (url) {
     const res = await fetch(url, {
@@ -199,6 +195,8 @@ export async function getPlaylistTracks(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const page: any = await res.json();
+    if (total === 0) total = page.total ?? 0;
+
     for (const entry of page.items) {
       // Spotify now uses `item` (TrackObject or EpisodeObject); `track` is deprecated
       const t = entry.item ?? entry.track;
@@ -213,15 +211,9 @@ export async function getPlaylistTracks(
     }
 
     url = page.next ?? null;
-
-    // Stop early if we've hit the max
-    if (tracks.length >= max) {
-      tracks.length = max;
-      break;
-    }
   }
 
-  return tracks;
+  return { tracks, total };
 }
 
 /** Search tracks by name + artist (for manual / file-upload flows). */

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       if (!playlistId) {
         return NextResponse.json({ error: "Could not parse playlist ID from URL" }, { status: 400 });
       }
-      const spotifyTracks = await getPlaylistTracks(playlistId);
+      const { tracks: spotifyTracks } = await getPlaylistTracks(playlistId);
       tracks = spotifyTracks.map((t) => ({ name: t.name, artist: t.artist }));
     } else if ((type === "file" || type === "manual") && rawSongs?.length) {
       // Search Spotify for each song string to enrich with artist info.
