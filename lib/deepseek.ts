@@ -23,8 +23,17 @@ const SYSTEM_PROMPT = `You are a music mood analyst. Given a list of songs (titl
 - moodSummary: a short, evocative phrase (e.g. "angsty optimism")
 - topThemes: array of 3 dominant lyrical/musical themes (e.g. ["rebellion", "nostalgia", "love"])
 - audioProfile: { tempo: "fast|medium|slow", energy: "high|medium|low", danceability: "high|medium|low" }
-- palette: array of 5 hex colour codes that match the mood. Choose colours that strongly reflect the thematic content — seduction/desire should lean into deep reds (#8B0000-#DC143C) and purples (#800080-#9932CC), romance into soft pinks and warm corals, anger/rebellion into fiery oranges and bold reds, melancholy into muted blues and greys, joy/celebration into bright yellows and golds. Prefer vibrant, mid-to-bright colours. Reserve very dark or near-black shades (e.g. #1a1a1a, #0d0d0d) strictly for heavy metal, hard industrial, or deeply melancholic themes.
-- keywords: array of 5-8 words or short phrases that capture the vibe
+- palette: array of 5 hex colour codes that match the mood. Choose colours that strongly reflect the thematic content:
+  seduction/desire → deep reds (#8B0000-#DC143C) and purples (#800080-#9932CC)
+  romance/love → soft pinks, warm corals, rose golds
+  aggression/anger/rage → dark reds to maroon (#8B0000, #800020, #4A0000)
+  swagger/confidence/bravado → black, dark navy (#0a0a1a, #1a1a2e, #0f0f2e), or deep purple-black
+  rebellion/defiance → fiery oranges and bold reds
+  melancholy/sadness → muted blues and cool greys
+  joy/celebration/euphoria → bright yellows, golds, vibrant pinks
+  nostalgia/sentiment → warm ambers, sepia tones, dusty rose
+  Prefer vibrant, mid-to-bright colours. Reserve very dark or near-black shades (e.g. #1a1a1a, #0d0d0d) strictly for swagger/confidence, heavy metal, industrial, or deeply melancholic themes.
+- keywords: array of 5-8 words or short phrases that capture the vibe. Each keyword's emotional weight should correspond to a palette colour — darker keywords map to darker palette entries, energetic/bright keywords to vibrant palette entries.
 
 Respond with ONLY the JSON object, no markdown or extra text.`;
 
