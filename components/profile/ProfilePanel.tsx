@@ -10,6 +10,8 @@ import {
 
 const CREDENTIAL_KEYS = Object.keys(CREDENTIAL_LABELS) as CredentialKey[];
 
+import { CheckIcon } from "../icons";
+
 export default function ProfilePanel() {
   const { credentials, updateField, clearCredentials, isComplete } = useCredentials();
   const [showSecrets, setShowSecrets] = useState(false);
@@ -24,7 +26,10 @@ export default function ProfilePanel() {
     <div className="space-y-8">
       {/* ── Privacy notice ── */}
       <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.05] p-5">
-        <p className="text-sm font-semibold text-amber-400">🔒 Your keys stay on your device</p>
+        <p className="text-sm font-semibold text-amber-400">
+          <svg className="mr-1.5 inline h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Your keys stay on your device
+        </p>
         <p className="mt-2 text-xs leading-relaxed text-gray-400">
           All credentials are stored in your browser&apos;s local storage and are never sent to our
           servers. They&apos;re only transmitted directly to Spotify and DeepSeek APIs for your
@@ -76,7 +81,7 @@ export default function ProfilePanel() {
             onClick={handleSave}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 transition"
           >
-            {saved ? "✓ Saved" : "Save"}
+            {saved ? <><CheckIcon className="mr-1 inline h-3.5 w-3.5" /> Saved</> : "Save"}
           </button>
 
           <button
@@ -88,7 +93,7 @@ export default function ProfilePanel() {
         </div>
 
         {isComplete && (
-          <p className="mt-2 text-xs text-green-500">✓ All required credentials set</p>
+          <p className="mt-2 text-xs text-green-500"><CheckIcon className="mr-1 inline h-3 w-3" /> All required credentials set</p>
         )}
       </div>
     </div>

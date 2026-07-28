@@ -1,6 +1,7 @@
 "use client";
 
 import PaletteVisual from "./PaletteVisual";
+import { RefreshIcon } from "./icons";
 
 interface MoodAnalysis {
   moodSummary: string;
@@ -169,9 +170,10 @@ export default function MoodboardResult({ data, onRegenerate }: Props) {
       <div className="text-center">
         <button
           onClick={onRegenerate}
-          className="rounded-full border border-white/10 px-6 py-2 text-sm text-gray-400 hover:bg-white/5 hover:text-white transition"
+          className="inline-flex items-center gap-2 rounded-full border px-7 py-3 text-sm font-medium transition-all shadow-soft-md hover:shadow-soft-lg hover:-translate-y-0.5 active:translate-y-0"
+          style={{ borderColor: palette[0] ?? "#6c5ce7", color: palette[0] ?? "#6c5ce7" }}
         >
-          🔄 Try a new variation
+          <RefreshIcon className="h-4 w-4" /> Try a new variation
         </button>
       </div>
     </section>

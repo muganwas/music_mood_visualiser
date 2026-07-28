@@ -6,6 +6,8 @@ interface Props {
   onAnalyze: (payload: { type: "manual"; songs: string[] }) => void;
 }
 
+import { CloseIcon } from "./icons";
+
 export default function SongList({ onAnalyze }: Props) {
   // Always start with one empty input; reveal next only when the last is non-empty.
   const [songs, setSongs] = useState<string[]>([""]);
@@ -73,7 +75,7 @@ export default function SongList({ onAnalyze }: Props) {
                 className="rounded-lg p-2 text-gray-600 hover:bg-white/5 hover:text-red-400 transition"
                 aria-label="Remove song"
               >
-                ✕
+                <CloseIcon className="h-3.5 w-3.5" />
               </button>
             )}
           </li>

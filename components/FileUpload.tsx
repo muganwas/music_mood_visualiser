@@ -14,6 +14,8 @@ function parseSongs(text: string): string[] {
     .filter((s) => s.length > 0);
 }
 
+import { MusicIcon } from "./icons";
+
 export default function FileUpload({ onAnalyze }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export default function FileUpload({ onAnalyze }: Props) {
           </p>
           <ul className="max-h-40 space-y-1 overflow-y-auto text-sm text-gray-300">
             {songs.slice(0, 10).map((s, i) => (
-              <li key={i} className="truncate">🎵 {s}</li>
+              <li key={i} className="flex items-center gap-1.5 truncate"><MusicIcon className="h-3 w-3 shrink-0 text-gray-500" /> {s}</li>
             ))}
             {songs.length > 10 && (
               <li className="text-gray-600">…and {songs.length - 10} more</li>

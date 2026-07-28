@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePlaylists } from "@/stores/PlaylistContext";
+import { CloseIcon, MusicIcon } from "../icons";
 
 interface Props {
   onSelect: (url: string) => void;
@@ -45,7 +46,7 @@ export default function PlaylistHistory({ onSelect, activeUrl }: Props) {
             {p.image ? (
               <img src={p.image} alt="" className="h-5 w-5 rounded-full object-cover" />
             ) : (
-              <span className="text-xs">🎵</span>
+              <MusicIcon className="h-4 w-4 text-gray-500" />
             )}
             <span className={`max-w-32 truncate text-xs ${isActive ? "text-white font-medium" : "text-gray-300"}`}>{p.name}</span>
             <span className={`text-xs ${isActive ? "text-brand-300" : "text-gray-600"}`}>{p.trackCount}</span>
@@ -54,7 +55,7 @@ export default function PlaylistHistory({ onSelect, activeUrl }: Props) {
               className="ml-1 rounded-full p-0.5 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-400 transition cursor-pointer"
               aria-label="Remove"
             >
-              ✕
+              <CloseIcon className="h-3 w-3" />
             </span>
           </button>
         )})}

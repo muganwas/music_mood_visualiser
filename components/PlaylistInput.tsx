@@ -46,6 +46,8 @@ function extractIdLocally(input: string): string | null {
 
 // ── Component ────────────────────────────────────────────────
 
+import { MusicIcon, CloseIcon, WarningIcon, CheckIcon } from "./icons";
+
 export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound }: Props) {
   const [url, setUrl] = useState("");
   const [urlState, setUrlState] = useState<UrlState>({ status: "idle" });
@@ -177,7 +179,9 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
             </span>
           )}
           {urlState.status === "valid" && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-lg">✓</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+              <CheckIcon className="h-5 w-5" />
+            </span>
           )}
           {(urlState.status === "invalid" || urlState.status === "error") && (
             <button
@@ -186,7 +190,7 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition"
               aria-label="Clear"
             >
-              ✕
+              <CloseIcon className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -212,7 +216,7 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
             />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white/5 text-2xl">
-              🎵
+              <MusicIcon className="h-10 w-10 text-gray-500" />
             </div>
           )}
 
@@ -224,11 +228,11 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
             </p>
             {!urlState.playlist.hasItems && (
               <p className="mt-1 text-xs text-amber-400">
-                ⚠️ No retrievable tracks — the playlist may be empty or private.
+                <WarningIcon className="mr-1 inline h-3 w-3" /> No retrievable tracks — the playlist may be empty or private.
               </p>
             )}
             {urlState.playlist.hasItems && (
-              <p className="mt-1 text-xs text-green-400">✓ Tracks retrieved successfully</p>
+              <p className="mt-1 text-xs text-green-400"><CheckIcon className="mr-1 inline h-3 w-3" /> Tracks retrieved successfully</p>
             )}
           </div>
         </div>

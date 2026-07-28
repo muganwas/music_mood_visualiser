@@ -9,7 +9,15 @@ import MoodboardResult from "@/components/MoodboardResult";
 import { useCredentials } from "@/stores/CredentialsContext";
 import { usePlaylists } from "@/stores/PlaylistContext";
 
+import { LinkIcon, FolderIcon, PencilIcon } from "@/components/icons";
+
 type InputMode = "link" | "upload" | "manual";
+
+const TAB_ICONS: Record<InputMode, React.ReactNode> = {
+  link: <LinkIcon className="h-4 w-4" />,
+  upload: <FolderIcon className="h-4 w-4" />,
+  manual: <PencilIcon className="h-4 w-4" />,
+};
 
 export default function Home() {
   const [mode, setMode] = useState<InputMode>("link");
@@ -104,9 +112,9 @@ export default function Home() {
       <div className="mb-10 flex justify-center gap-2">
         {(
           [
-            ["link", "🔗 Playlist Link"],
-            ["upload", "📂 Upload File"],
-            ["manual", "✍️ Manual Entry"],
+            ["link", "Playlist Link"],
+            ["upload", "Upload File"],
+            ["manual", "Manual Entry"],
           ] as [InputMode, string][]
         ).map(([key, label]) => (
           <button
@@ -118,7 +126,10 @@ export default function Home() {
                 : "bg-white/5 text-gray-300 hover:bg-white/10"
             }`}
           >
-            {label}
+            <span className="inline-flex items-center gap-1.5">
+              {TAB_ICONS[key]}
+              {label}
+            </span>
           </button>
         ))}
       </div>
