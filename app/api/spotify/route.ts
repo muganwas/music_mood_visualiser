@@ -48,7 +48,19 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ error: "Pass ?playlist= or ?q=" }, { status: 400 });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Spotify error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const raw = err instanceof Error ? err.message : "Spotify error";
+
+    // 403 = playlist not owned by / collaborated with the authenticated user
+    if (raw.includes("403")) {
+      return NextResponse.json(
+        {
+          error: "This playlist isn't accessible. Spotify only allows access to playlists you own or collaborate on. Try one of your own playlists instead.",
+          code: "FORBIDDEN_PLAYLIST",
+        },
+        { status: 403 },
+      );
+    }
+
+    return NextResponse.json({ error: raw }, { status: 500 });
   }
 }
