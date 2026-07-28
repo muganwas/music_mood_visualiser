@@ -46,9 +46,19 @@ export async function POST(req: NextRequest) {
     // ── AI mood analysis ──
     const analysis = await analyzeMood(tracks, deepseekKey);
 
+    // For link type, re-fetch full tracks to get album art for the collage
+    let albumArts: string[] = [];
+    if (type === "link" && url) {
+      const playlistId = extractPlaylistId(url);
+      if (playlistId) {
+        const { tracks: fullTracks } = await getPlaylistTracks(playlistId, creds);
+        albumArts = [...new Set(fullTracks.map((t) => t.albumArt).filter(Boolean))];
+      }
+    }
+
     return NextResponse.json({
-      tracks: tracks.slice(0, 5), // preview of first 5
-      totalTracks: tracks.length,
+      trackCount: tracks.length,
+      albumArts: albumArts.slice(0, 50),
       ...analysis,
     });
   } catch (err: unknown) {

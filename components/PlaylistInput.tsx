@@ -208,7 +208,7 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
             <img
               src={urlState.playlist.image}
               alt={urlState.playlist.name}
-              className="h-16 w-16 rounded-lg object-cover shadow-lg"
+              className="h-16 w-16 rounded-lg object-cover shadow-soft"
             />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-white/5 text-2xl">

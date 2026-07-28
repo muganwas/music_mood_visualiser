@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import PlaylistInput from "@/components/PlaylistInput";
 import FileUpload from "@/components/FileUpload";
 import SongList from "@/components/SongList";
 import PlaylistHistory from "@/components/profile/PlaylistHistory";
+import MoodboardResult from "@/components/MoodboardResult";
 import { useCredentials } from "@/stores/CredentialsContext";
 import { usePlaylists } from "@/stores/PlaylistContext";
 
@@ -14,10 +15,37 @@ export default function Home() {
   const [mode, setMode] = useState<InputMode>("link");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<object | null>(null);
+  const [lastPayload, setLastPayload] = useState<object | null>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
   const { credentials } = useCredentials();
   const { addPlaylist } = usePlaylists();
 
+  // Smooth-scroll to result when analysis finishes (custom slower easing)
+  useEffect(() => {
+    if (result && resultRef.current) {
+      const el = resultRef.current;
+      const target = el.getBoundingClientRect().top + window.scrollY - 80;
+      const start = window.scrollY;
+      const distance = target - start;
+      const duration = 1200; // ms — slower than native smooth
+      let startTime: number | null = null;
+
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+      const step = (timestamp: number) => {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        window.scrollTo(0, start + distance * easeOutCubic(progress));
+        if (progress < 1) requestAnimationFrame(step);
+      };
+
+      requestAnimationFrame(step);
+    }
+  }, [result]);
+
   const handleAnalyze = async (payload: object) => {
+    setLastPayload(payload);
     setLoading(true);
     setResult(null);
     try {
@@ -42,6 +70,11 @@ export default function Home() {
     }
   };
 
+  const activeUrl =
+    lastPayload && (lastPayload as { type: string; url?: string }).type === "link"
+      ? (lastPayload as { url?: string }).url
+      : undefined;
+
   const handlePlaylistFound = (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string }) => {
     addPlaylist(info);
   };
@@ -65,7 +98,7 @@ export default function Home() {
       </header>
 
       {/* Playlist History */}
-      <PlaylistHistory onSelect={handleHistorySelect} />
+      <PlaylistHistory onSelect={handleHistorySelect} activeUrl={activeUrl} />
 
       {/* Mode Tabs */}
       <div className="mb-10 flex justify-center gap-2">
@@ -105,7 +138,7 @@ export default function Home() {
 
       {/* Loading */}
       {loading && (
-        <div className="mt-10 space-y-3 text-center">
+        <div ref={resultRef} className="mt-10 space-y-3 text-center">
           <div className="mx-auto h-2 w-48 overflow-hidden rounded-full bg-white/10">
             <div className="h-full w-2/3 animate-pulse rounded-full bg-brand-500" />
           </div>
@@ -115,13 +148,18 @@ export default function Home() {
         </div>
       )}
 
-      {/* Result placeholder */}
-      {result && (
-        <section className="mt-10 rounded-2xl border border-white/10 bg-white/[0.03] p-8">
-          <h2 className="text-xl font-semibold">Moodboard Result</h2>
-          <pre className="mt-4 overflow-auto text-xs text-gray-400">
-            {JSON.stringify(result, null, 2)}
-          </pre>
+      {result && !("error" in result) && (
+        <div ref={resultRef}>
+        <MoodboardResult
+          data={result as { trackCount: number; albumArts: string[]; moodSummary: string; topThemes: string[]; audioProfile: { tempo: string; energy: string; danceability: string }; palette: string[]; keywords: string[] }}
+          onRegenerate={() => lastPayload && handleAnalyze(lastPayload)}
+        />
+        </div>
+      )}
+
+      {result && "error" in result && (
+        <section className="mt-10 rounded-2xl border border-red-500/20 bg-red-500/[0.04] p-8 text-center">
+          <p className="text-red-400">{(result as { error: string }).error}</p>
         </section>
       )}
 

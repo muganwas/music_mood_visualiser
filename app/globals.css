@@ -18,3 +18,15 @@ body {
 .bg-radiant {
   background: radial-gradient(ellipse 80% 60% at 50% 0%, #1a1040 0%, #0a0a0f 70%);
 }
+
+/* Whitish-grey elevation shadows for dark background */
+.shadow-soft {
+  box-shadow:
+    0 1px 2px rgba(255, 255, 255, 0.04),
+    0 4px 16px rgba(255, 255, 255, 0.06);
+}
+.shadow-soft-md {
+  box-shadow:
+    0 2px 4px rgba(255, 255, 255, 0.08),
+    0 8px 32px rgba(255, 255, 255, 0.15);
+}

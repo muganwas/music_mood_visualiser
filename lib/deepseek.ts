@@ -23,7 +23,7 @@ const SYSTEM_PROMPT = `You are a music mood analyst. Given a list of songs (titl
 - moodSummary: a short, evocative phrase (e.g. "angsty optimism")
 - topThemes: array of 3 dominant lyrical/musical themes (e.g. ["rebellion", "nostalgia", "love"])
 - audioProfile: { tempo: "fast|medium|slow", energy: "high|medium|low", danceability: "high|medium|low" }
-- palette: array of 5 hex colour codes that match the mood
+- palette: array of 5 hex colour codes that match the mood. Choose colours that strongly reflect the thematic content — seduction/desire should lean into deep reds (#8B0000-#DC143C) and purples (#800080-#9932CC), romance into soft pinks and warm corals, anger/rebellion into fiery oranges and bold reds, melancholy into muted blues and greys, joy/celebration into bright yellows and golds. Prefer vibrant, mid-to-bright colours. Reserve very dark or near-black shades (e.g. #1a1a1a, #0d0d0d) strictly for heavy metal, hard industrial, or deeply melancholic themes.
 - keywords: array of 5-8 words or short phrases that capture the vibe
 
 Respond with ONLY the JSON object, no markdown or extra text.`;

@@ -5,9 +5,10 @@ import { usePlaylists } from "@/stores/PlaylistContext";
 
 interface Props {
   onSelect: (url: string) => void;
+  activeUrl?: string;
 }
 
-export default function PlaylistHistory({ onSelect }: Props) {
+export default function PlaylistHistory({ onSelect, activeUrl }: Props) {
   const { playlists, removePlaylist, clearPlaylists } = usePlaylists();
   const [mounted, setMounted] = useState(false);
 
@@ -29,19 +30,25 @@ export default function PlaylistHistory({ onSelect }: Props) {
         </button>
       </div>
       <div className="flex flex-wrap gap-2">
-        {playlists.map((p) => (
+        {playlists.map((p) => {
+          const isActive = p.url === activeUrl;
+          return (
           <button
             key={p.id}
             onClick={() => onSelect(p.url)}
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 pr-2 group hover:border-brand-500/40 hover:bg-brand-500/10 transition cursor-pointer"
+            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 pr-2 group transition cursor-pointer ${
+              isActive
+                ? "border-brand-500/60 bg-brand-500/20 shadow-soft-md"
+                : "border-white/10 bg-white/[0.03] hover:border-brand-500/40 hover:bg-brand-500/10"
+            }`}
           >
             {p.image ? (
               <img src={p.image} alt="" className="h-5 w-5 rounded-full object-cover" />
             ) : (
               <span className="text-xs">🎵</span>
             )}
-            <span className="max-w-32 truncate text-xs text-gray-300">{p.name}</span>
-            <span className="text-xs text-gray-600">{p.trackCount}</span>
+            <span className={`max-w-32 truncate text-xs ${isActive ? "text-white font-medium" : "text-gray-300"}`}>{p.name}</span>
+            <span className={`text-xs ${isActive ? "text-brand-300" : "text-gray-600"}`}>{p.trackCount}</span>
             <span
               onClick={(e) => { e.stopPropagation(); removePlaylist(p.id); }}
               className="ml-1 rounded-full p-0.5 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-400 transition cursor-pointer"
@@ -50,7 +57,7 @@ export default function PlaylistHistory({ onSelect }: Props) {
               ✕
             </span>
           </button>
-        ))}
+        )})}
       </div>
     </div>
   );
