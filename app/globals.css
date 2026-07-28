@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0a0a0f;
+  --fg: #e4e4ed;
+  --accent: #6c5ce7;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Subtle animated gradient background */
+.bg-radiant {
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, #1a1040 0%, #0a0a0f 70%);
+}

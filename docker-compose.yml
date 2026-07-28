@@ -1,0 +1,32 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: music-mood-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    volumes:
+      # Mount source code for hot-reload during development
+      - ./app:/app/app
+      - ./components:/app/components
+      - ./lib:/app/lib
+      - ./public:/app/public
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./next.config.ts:/app/next.config.ts
+      - ./tailwind.config.ts:/app/tailwind.config.ts
+      - ./postcss.config.mjs:/app/postcss.config.mjs
+      # Named volume for Next.js build cache (hot reload)
+      - next-cache:/app/.next
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+    command: npx next dev
+    stdin_open: true
+    tty: true
+
+volumes:
+  next-cache:
