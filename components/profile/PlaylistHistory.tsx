@@ -1,11 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePlaylists } from "@/stores/PlaylistContext";
 
-export default function PlaylistHistory() {
-  const { playlists, removePlaylist, clearPlaylists } = usePlaylists();
+interface Props {
+  onSelect: (url: string) => void;
+}
 
-  if (playlists.length === 0) return null;
+export default function PlaylistHistory({ onSelect }: Props) {
+  const { playlists, removePlaylist, clearPlaylists } = usePlaylists();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted || playlists.length === 0) return null;
 
   return (
     <div className="mb-10">
@@ -22,9 +30,10 @@ export default function PlaylistHistory() {
       </div>
       <div className="flex flex-wrap gap-2">
         {playlists.map((p) => (
-          <div
+          <button
             key={p.id}
-            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 pr-2 group hover:border-white/20 transition"
+            onClick={() => onSelect(p.url)}
+            className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 pr-2 group hover:border-brand-500/40 hover:bg-brand-500/10 transition cursor-pointer"
           >
             {p.image ? (
               <img src={p.image} alt="" className="h-5 w-5 rounded-full object-cover" />
@@ -33,14 +42,14 @@ export default function PlaylistHistory() {
             )}
             <span className="max-w-32 truncate text-xs text-gray-300">{p.name}</span>
             <span className="text-xs text-gray-600">{p.trackCount}</span>
-            <button
+            <span
               onClick={(e) => { e.stopPropagation(); removePlaylist(p.id); }}
-              className="ml-1 rounded-full p-0.5 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-400 transition"
+              className="ml-1 rounded-full p-0.5 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-400 transition cursor-pointer"
               aria-label="Remove"
             >
               ✕
-            </button>
-          </div>
+            </span>
+          </button>
         ))}
       </div>
     </div>

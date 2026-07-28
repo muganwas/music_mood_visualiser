@@ -46,6 +46,11 @@ export default function Home() {
     addPlaylist(info);
   };
 
+  const handleHistorySelect = (url: string) => {
+    setMode("link");
+    handleAnalyze({ type: "link", url });
+  };
+
   return (
     <main className="mx-auto max-w-3xl px-6 py-20">
       {/* Header */}
@@ -60,7 +65,7 @@ export default function Home() {
       </header>
 
       {/* Playlist History */}
-      <PlaylistHistory />
+      <PlaylistHistory onSelect={handleHistorySelect} />
 
       {/* Mode Tabs */}
       <div className="mb-10 flex justify-center gap-2">
