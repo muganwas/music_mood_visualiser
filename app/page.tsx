@@ -208,7 +208,15 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="mt-20 text-center text-xs text-gray-600">
-        Built with Next.js · Spotify API · DeepSeek AI
+        Built with Next.js · Spotify API · YouTube API · DeepSeek AI ·{" "}
+        <a
+          href="https://github.com/muganwas"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gray-500 hover:text-brand-400 transition"
+        >
+          Muganwas
+        </a>
       </footer>
     </main>
   );
