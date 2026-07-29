@@ -16,6 +16,7 @@ export interface SavedPlaylist {
   owner: string;
   trackCount: number;
   url: string;
+  source: "spotify" | "youtube";
   savedAt: number; // timestamp
 }
 

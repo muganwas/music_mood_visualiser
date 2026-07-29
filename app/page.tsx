@@ -66,6 +66,7 @@ export default function Home() {
           "x-spotify-refresh-token": credentials.spotifyRefreshToken,
           "x-spotify-market": credentials.spotifyMarket,
           "x-deepseek-api-key": credentials.deepseekApiKey,
+          "x-youtube-api-key": credentials.youtubeApiKey,
         },
         body: JSON.stringify(payload),
       });
@@ -83,13 +84,13 @@ export default function Home() {
       ? (lastPayload as { url?: string }).url
       : undefined;
 
-  const handlePlaylistFound = (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string }) => {
+  const handlePlaylistFound = (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string; source: "spotify" | "youtube" }) => {
     addPlaylist(info);
   };
 
-  const handleHistorySelect = (url: string) => {
+  const handleHistorySelect = (url: string, source: "spotify" | "youtube") => {
     setMode("link");
-    handleAnalyze({ type: "link", url });
+    handleAnalyze({ type: "link", url, source });
   };
 
   return (

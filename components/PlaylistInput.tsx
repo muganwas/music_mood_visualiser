@@ -22,9 +22,9 @@ type UrlState =
   | { status: "error"; message: string };
 
 interface Props {
-  onAnalyze: (payload: { type: "link"; url: string }) => void;
+  onAnalyze: (payload: { type: "link"; url: string; source: "spotify" | "youtube" }) => void;
   credentials: UserCredentials;
-  onPlaylistFound: (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string }) => void;
+  onPlaylistFound: (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string; source: "spotify" | "youtube" }) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -48,9 +48,20 @@ function extractIdLocally(input: string): string | null {
 
 import { MusicIcon, CloseIcon, WarningIcon, CheckIcon } from "./icons";
 
+/** Quick client-side check: YouTube playlist? */
+function looksLikeYoutube(input: string): boolean {
+  const lower = input.trim().toLowerCase();
+  return (lower.includes("youtube") || lower.includes("youtu.be")) && lower.includes("list=");
+}
+
+function isSpotify(input: string): boolean {
+  return input.trim().toLowerCase().includes("spotify");
+}
+
 export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound }: Props) {
   const [url, setUrl] = useState("");
   const [urlState, setUrlState] = useState<UrlState>({ status: "idle" });
+  const [source, setSource] = useState<"spotify" | "youtube" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced preview fetch whenever the URL changes
@@ -62,38 +73,43 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
     // Reset if empty
     if (!trimmed) {
       setUrlState({ status: "idle" });
+      setSource(null);
       return;
     }
 
-    // Quick client-side check — if it doesn't even look like Spotify, bail early
-    if (!looksLikeSpotify(trimmed)) {
-      // Don't mark invalid right away — user might still be typing
+    // Determine source
+    let detected: "spotify" | "youtube" | null = null;
+    if (looksLikeYoutube(trimmed)) detected = "youtube";
+    else if (isSpotify(trimmed)) detected = "spotify";
+
+    if (!detected) {
       setUrlState({ status: "idle" });
+      setSource(null);
       return;
     }
-
-    const localId = extractIdLocally(trimmed);
-    if (!localId) {
-      setUrlState({ status: "invalid", reason: "Could not extract a playlist ID — check your link." });
-      return;
-    }
+    setSource(detected);
 
     // Debounce: wait 600 ms after the user stops typing
     debounceRef.current = setTimeout(async () => {
       setUrlState({ status: "checking" });
 
+      const previewUrl = detected === "youtube"
+        ? `/api/youtube?playlist=${encodeURIComponent(trimmed)}&preview=true`
+        : `/api/spotify?playlist=${encodeURIComponent(trimmed)}&preview=true`;
+
+      const headers: Record<string, string> = {};
+      if (detected === "spotify") {
+        headers["x-spotify-client-id"] = credentials.spotifyClientId;
+        headers["x-spotify-client-secret"] = credentials.spotifyClientSecret;
+        headers["x-spotify-refresh-token"] = credentials.spotifyRefreshToken;
+        headers["x-spotify-market"] = credentials.spotifyMarket;
+      }
+      if (detected === "youtube") {
+        headers["x-youtube-api-key"] = credentials.youtubeApiKey;
+      }
+
       try {
-        const res = await fetch(
-          `/api/spotify?playlist=${encodeURIComponent(url.trim())}&preview=true`,
-          {
-            headers: {
-              "x-spotify-client-id": credentials.spotifyClientId,
-              "x-spotify-client-secret": credentials.spotifyClientSecret,
-              "x-spotify-refresh-token": credentials.spotifyRefreshToken,
-              "x-spotify-market": credentials.spotifyMarket,
-            },
-          },
-        );
+        const res = await fetch(previewUrl, { headers });
         const data = await res.json();
 
         if (!res.ok || data.error) {
@@ -113,14 +129,14 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
           },
         });
 
-        // Save to history
         onPlaylistFound({
           id: data.playlist.id,
           name: data.playlist.name,
           image: data.playlist.image,
           owner: data.playlist.owner,
           trackCount: data.playlist.trackCount,
-          url: url.trim(),
+          url: trimmed,
+          source: detected,
         });
       } catch {
         setUrlState({ status: "error", message: "Network error — check your connection." });
@@ -134,8 +150,8 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (urlState.status !== "valid") return;
-    onAnalyze({ type: "link", url: url.trim() });
+    if (urlState.status !== "valid" || !source) return;
+    onAnalyze({ type: "link", url: url.trim(), source });
   };
 
   const handleClear = () => {
@@ -150,7 +166,7 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
       {/* Label + input */}
       <div>
         <label htmlFor="playlist-url" className="mb-2 block text-sm font-medium text-gray-300">
-          Spotify Playlist Link
+          {source === "youtube" ? "YouTube" : "Spotify"} Playlist Link
         </label>
         <div className="relative">
           <input
@@ -158,7 +174,7 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://open.spotify.com/playlist/…  or  spotify:playlist:…"
+            placeholder="https://open.spotify.com/playlist/… or https://youtube.com/playlist?list=…"
             className="w-full rounded-xl border bg-white/5 px-4 py-3 pr-10 text-white placeholder-gray-500 outline-none transition focus:ring-2"
             style={{
               borderColor:
@@ -245,6 +261,8 @@ export default function PlaylistInput({ onAnalyze, credentials, onPlaylistFound 
         className="w-full rounded-xl bg-brand-500 py-3 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40"
       >
         🎧 Analyze My Playlist
+        {source === "youtube" && " (YouTube)"}
+        {source === "spotify" && " (Spotify)"}
       </button>
     </form>
   );
