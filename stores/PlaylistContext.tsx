@@ -17,7 +17,10 @@ export interface SavedPlaylist {
   trackCount: number;
   url: string;
   source: "spotify" | "youtube";
-  savedAt: number; // timestamp
+  type: "link" | "file";
+  fingerprint?: string;
+  songs?: { name: string; artist: string }[]; // stored for file replays
+  savedAt: number;
 }
 
 const STORAGE_KEY = "music-mood-playlists";
@@ -26,6 +29,7 @@ const MAX_ITEMS = 20;
 interface PlaylistContextValue {
   playlists: SavedPlaylist[];
   addPlaylist: (p: Omit<SavedPlaylist, "savedAt">) => void;
+  addFilePlaylist: (fileName: string, songCount: number, fingerprint: string, songs: { name: string; artist: string }[]) => void;
   removePlaylist: (id: string) => void;
   clearPlaylists: () => void;
 }
@@ -36,7 +40,10 @@ function load(): SavedPlaylist[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as SavedPlaylist[];
+    // Filter out stale file entries saved before the songs field was added
+    return parsed.filter((p) => !(p.type === "file" && !p.songs?.length));
   } catch { /* ignore */ }
   return [];
 }
@@ -55,9 +62,24 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
 
   const addPlaylist = useCallback((p: Omit<SavedPlaylist, "savedAt">) => {
     setPlaylists((prev) => {
-      // Remove duplicate if already exists
       const filtered = prev.filter((x) => x.id !== p.id);
       return [{ ...p, savedAt: Date.now() }, ...filtered].slice(0, MAX_ITEMS);
+    });
+  }, []);
+
+  const addFilePlaylist = useCallback((fileName: string, songCount: number, fingerprint: string, songs: { name: string; artist: string }[]) => {
+    setPlaylists((prev) => {
+      const exists = prev.some((p) => p.fingerprint === fingerprint);
+      if (exists) return prev;
+
+      const id = `file-${Date.now()}`;
+      const entry: SavedPlaylist = {
+        id, name: fileName, image: "", owner: "Uploaded file",
+        trackCount: songCount, url: "",
+        source: "spotify", type: "file", fingerprint, songs,
+        savedAt: Date.now(),
+      };
+      return [entry, ...prev].slice(0, MAX_ITEMS);
     });
   }, []);
 
@@ -70,7 +92,7 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ playlists, addPlaylist, removePlaylist, clearPlaylists }}>
+    <Ctx.Provider value={{ playlists, addPlaylist, addFilePlaylist, removePlaylist, clearPlaylists }}>
       {children}
     </Ctx.Provider>
   );

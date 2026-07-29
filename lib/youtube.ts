@@ -136,3 +136,32 @@ export async function getYTPlaylistTracks(
 
   return { tracks: tracks.slice(0, maxResults), total };
 }
+
+/** Search YouTube for a single track — used as album-art fallback */
+export async function searchYTTrack(
+  query: string,
+  apiKey?: string,
+): Promise<{ albumArt: string } | null> {
+  const key = resolveKey(apiKey);
+  if (!key) return null;
+
+  const params = new URLSearchParams({
+    part: "snippet",
+    q: query,
+    type: "video",
+    maxResults: "1",
+    key,
+  });
+
+  try {
+    const res = await fetch(`${YT_API_BASE}/search?${params}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const item = data.items?.[0];
+    if (!item) return null;
+    const thumb = item.snippet?.thumbnails;
+    return { albumArt: thumb?.medium?.url || thumb?.default?.url || "" };
+  } catch {
+    return null;
+  }
+}

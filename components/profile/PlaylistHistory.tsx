@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { usePlaylists } from "@/stores/PlaylistContext";
-import { CloseIcon, MusicIcon } from "../icons";
+import { CloseIcon, MusicIcon, FolderIcon } from "../icons";
+import type { SavedPlaylist } from "@/stores/PlaylistContext";
 
 interface Props {
-  onSelect: (url: string, source: "spotify" | "youtube") => void;
-  activeUrl?: string;
+  onSelect: (p: SavedPlaylist) => void;
+  activeId?: string | null;
 }
 
-export default function PlaylistHistory({ onSelect, activeUrl }: Props) {
+export default function PlaylistHistory({ onSelect, activeId }: Props) {
   const { playlists, removePlaylist, clearPlaylists } = usePlaylists();
   const [mounted, setMounted] = useState(false);
 
@@ -32,11 +33,12 @@ export default function PlaylistHistory({ onSelect, activeUrl }: Props) {
       </div>
       <div className="flex flex-wrap gap-2">
         {playlists.map((p) => {
-          const isActive = p.url === activeUrl;
+          const isActive = activeId === p.id;
+          const isFile = p.type === "file";
           return (
           <button
             key={p.id}
-            onClick={() => onSelect(p.url, p.source)}
+            onClick={() => onSelect(p)}
             className={`flex items-center gap-2 rounded-full border px-3 py-1.5 pr-2 group transition cursor-pointer ${
               isActive
                 ? "border-brand-500/60 bg-brand-500/20 shadow-soft-md"
@@ -45,15 +47,23 @@ export default function PlaylistHistory({ onSelect, activeUrl }: Props) {
           >
             {p.image ? (
               <img src={p.image} alt="" className="h-5 w-5 rounded-full object-cover" />
+            ) : isFile ? (
+              <FolderIcon className="h-4 w-4 text-gray-500" />
             ) : (
               <MusicIcon className="h-4 w-4 text-gray-500" />
             )}
             <span className={`max-w-32 truncate text-xs ${isActive ? "text-white font-medium" : "text-gray-300"}`}>{p.name}</span>
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-              p.source === "youtube" ? "bg-red-500/15 text-red-400" : "bg-green-500/15 text-green-400"
-            }`}>
-              {p.source === "youtube" ? "YT" : "SP"}
-            </span>
+            {isFile ? (
+              <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-gray-400">
+                FILE
+              </span>
+            ) : (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                p.source === "youtube" ? "bg-red-500/15 text-red-400" : "bg-green-500/15 text-green-400"
+              }`}>
+                {p.source === "youtube" ? "YT" : "SP"}
+              </span>
+            )}
             <span className={`text-xs ${isActive ? "text-brand-300" : "text-gray-600"}`}>{p.trackCount}</span>
             <span
               onClick={(e) => { e.stopPropagation(); removePlaylist(p.id); }}

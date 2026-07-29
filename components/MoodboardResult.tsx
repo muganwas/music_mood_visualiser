@@ -2,6 +2,7 @@
 
 import PaletteVisual from "./PaletteVisual";
 import { RefreshIcon } from "./icons";
+import { ensureContrast, contrastText } from "@/lib/contrast";
 
 interface MoodAnalysis {
   moodSummary: string;
@@ -31,15 +32,7 @@ const METER_WIDTH: Record<string, string> = {
 export default function MoodboardResult({ data, onRegenerate }: Props) {
   const { moodSummary, topThemes, audioProfile, palette, keywords, trackCount, albumArts } = data;
 
-  /** Return white for dark colours, dark for light colours — ensures readable pill text */
-  const contrastText = (hex: string): string => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    // relative luminance (sRGB)
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    return lum > 140 ? "#1a1a2e" : "#ffffff";
-  };
+  const readableAccent = ensureContrast(palette[0] ?? "#6c5ce7");
 
   return (
     <section className="mt-10 space-y-14">
@@ -47,7 +40,7 @@ export default function MoodboardResult({ data, onRegenerate }: Props) {
       <div className="text-center">
         <h2
           className="text-4xl font-bold"
-          style={{ color: palette[0] ?? "#6c5ce7" }}
+          style={{ color: readableAccent }}
         >
           {moodSummary}
         </h2>
@@ -108,7 +101,7 @@ export default function MoodboardResult({ data, onRegenerate }: Props) {
             {topThemes.map((t, i) => (
               <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
                 <span
-                  className="inline-block h-2 w-2 rounded-full"
+                  className="inline-block h-2 w-2 rounded-full border border-white/30"
                   style={{ backgroundColor: palette[i] ?? palette[0] }}
                 />
                 {t}
@@ -157,7 +150,7 @@ export default function MoodboardResult({ data, onRegenerate }: Props) {
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
                 <div
                   className={`h-full rounded-full transition-all ${METER_WIDTH[value] ?? "w-1/2"}`}
-                  style={{ backgroundColor: palette[0] }}
+                  style={{ backgroundColor: readableAccent }}
                 />
               </div>
               <span className="w-12 text-right text-xs capitalize text-gray-400">{value}</span>
@@ -171,7 +164,7 @@ export default function MoodboardResult({ data, onRegenerate }: Props) {
         <button
           onClick={onRegenerate}
           className="inline-flex items-center gap-2 rounded-full border px-7 py-3 text-sm font-medium transition-all shadow-soft-md hover:shadow-soft-lg hover:-translate-y-0.5 active:translate-y-0"
-          style={{ borderColor: palette[0] ?? "#6c5ce7", color: palette[0] ?? "#6c5ce7" }}
+          style={{ borderColor: readableAccent, color: readableAccent }}
         >
           <RefreshIcon className="h-4 w-4" /> Try a new variation
         </button>

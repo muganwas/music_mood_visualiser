@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractPlaylistId, getPlaylistTracks, searchTrack, getSpotifyCredentials } from "@/lib/spotify";
-import { extractYTPlaylistId, getYTPlaylistTracks } from "@/lib/youtube";
+import { extractYTPlaylistId, getYTPlaylistTracks, searchYTTrack } from "@/lib/youtube";
 import { analyzeMood } from "@/lib/deepseek";
 
 export async function POST(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       type: "link" | "file" | "manual";
       url?: string;
       source?: "spotify" | "youtube";
-      songs?: string[];
+      songs?: (string | { name: string; artist: string })[];
     };
 
     const creds = getSpotifyCredentials(req.headers);
@@ -37,16 +37,26 @@ export async function POST(req: NextRequest) {
         tracks = spotifyTracks.map((t) => ({ name: t.name, artist: t.artist }));
       }
     } else if ((type === "file" || type === "manual") && rawSongs?.length) {
-      // Search Spotify for each song string to enrich with artist info.
-      const results = await Promise.all(
-        rawSongs.map(async (q) => {
-          const match = await searchTrack(q, creds);
+      // Accept pre-resolved {name, artist} pairs or plain strings
+      tracks = rawSongs.map((s) => {
+        if (typeof s === "object" && "name" in s) {
+          return { name: s.name, artist: s.artist || "Unknown" };
+        }
+        // Plain string — try Spotify enrichment
+        return { name: s as string, artist: "" };
+      });
+
+      // For any still missing artists, try Spotify
+      const enriched = await Promise.all(
+        tracks.map(async (t) => {
+          if (t.artist) return t;
+          const match = await searchTrack(t.name, creds);
           return match
             ? { name: match.name, artist: match.artist }
-            : { name: q, artist: "Unknown" }; // fallback if not found
+            : { name: t.name, artist: "Unknown" };
         })
       );
-      tracks = results;
+      tracks = enriched;
     } else {
       return NextResponse.json({ error: "No songs provided" }, { status: 400 });
     }
@@ -58,7 +68,7 @@ export async function POST(req: NextRequest) {
     // ── AI mood analysis ──
     const analysis = await analyzeMood(tracks, deepseekKey);
 
-    // For link type, re-fetch full tracks to get album art for the collage
+    // ── Album art collage ──
     let albumArts: string[] = [];
     if (type === "link" && url) {
       if (source === "youtube") {
@@ -74,6 +84,19 @@ export async function POST(req: NextRequest) {
           albumArts = [...new Set(fullTracks.map((t) => t.albumArt).filter(Boolean))];
         }
       }
+    } else {
+      // File / manual: search Spotify for each track, fall back to YouTube
+      const arts = await Promise.all(
+        tracks.map(async (t) => {
+          // Try Spotify
+          const match = await searchTrack(`${t.name} ${t.artist}`, creds);
+          if (match?.albumArt) return match.albumArt;
+          // Fall back to YouTube
+          const yt = await searchYTTrack(`${t.name} ${t.artist}`, ytApiKey);
+          return yt?.albumArt || "";
+        })
+      );
+      albumArts = [...new Set(arts.filter(Boolean))];
     }
 
     return NextResponse.json({

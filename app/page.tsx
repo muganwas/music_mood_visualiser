@@ -13,6 +13,8 @@ import { LinkIcon, FolderIcon, PencilIcon } from "@/components/icons";
 
 type InputMode = "link" | "upload" | "manual";
 
+import type { SavedPlaylist } from "@/stores/PlaylistContext";
+
 const TAB_ICONS: Record<InputMode, React.ReactNode> = {
   link: <LinkIcon className="h-4 w-4" />,
   upload: <FolderIcon className="h-4 w-4" />,
@@ -26,7 +28,7 @@ export default function Home() {
   const [lastPayload, setLastPayload] = useState<object | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const { credentials } = useCredentials();
-  const { addPlaylist } = usePlaylists();
+  const { addPlaylist, addFilePlaylist } = usePlaylists();
 
   // Smooth-scroll to result when analysis finishes (custom slower easing)
   useEffect(() => {
@@ -72,6 +74,21 @@ export default function Home() {
       });
       const data = await res.json();
       setResult(data);
+
+      // Save file-based playlists to history (content-deduplicated)
+      const p = payload as { type?: string; fileName?: string; songs?: { name: string; artist: string }[] };
+      if (p.type === "file" && p.fileName && p.songs?.length) {
+        const fp = p.songs
+          .map((s) => s.name.toLowerCase().trim())
+          .sort()
+          .join("|");
+        // Simple hash for compact storage
+        let hash = 0;
+        for (let i = 0; i < fp.length; i++) {
+          hash = ((hash << 5) - hash + fp.charCodeAt(i)) | 0;
+        }
+        addFilePlaylist(p.fileName, p.songs.length, String(hash), p.songs);
+      }
     } catch (err) {
       console.error("Analysis failed", err);
     } finally {
@@ -79,18 +96,22 @@ export default function Home() {
     }
   };
 
-  const activeUrl =
-    lastPayload && (lastPayload as { type: string; url?: string }).type === "link"
-      ? (lastPayload as { url?: string }).url
-      : undefined;
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 
   const handlePlaylistFound = (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string; source: "spotify" | "youtube" }) => {
-    addPlaylist(info);
+    addPlaylist({ ...info, type: "link" });
   };
 
-  const handleHistorySelect = (url: string, source: "spotify" | "youtube") => {
-    setMode("link");
-    handleAnalyze({ type: "link", url, source });
+  const handleHistorySelect = (p: SavedPlaylist) => {
+    setActivePlaylistId(p.id);
+    if (p.type === "file") {
+      if (!p.songs?.length) return;
+      setMode("upload");
+      handleAnalyze({ type: "file", songs: p.songs, fileName: p.name });
+    } else {
+      setMode("link");
+      handleAnalyze({ type: "link", url: p.url, source: p.source });
+    }
   };
 
   return (
@@ -107,7 +128,7 @@ export default function Home() {
       </header>
 
       {/* Playlist History */}
-      <PlaylistHistory onSelect={handleHistorySelect} activeUrl={activeUrl} />
+      <PlaylistHistory onSelect={handleHistorySelect} activeId={activePlaylistId} />
 
       {/* Mode Tabs */}
       <div className="mb-10 flex justify-center gap-2">
@@ -144,7 +165,7 @@ export default function Home() {
             onPlaylistFound={handlePlaylistFound}
           />
         )}
-        {mode === "upload" && <FileUpload onAnalyze={handleAnalyze} />}
+        {mode === "upload" && <FileUpload onAnalyze={handleAnalyze} credentials={credentials} />}
         {mode === "manual" && <SongList onAnalyze={handleAnalyze} />}
       </section>
 
