@@ -14,9 +14,11 @@ AI Music Moodboard analyses your playlist using AI and generates a visual moodbo
 
 1. **Choose an input method** — paste a Spotify or YouTube playlist link, upload a CSV/text file, or type songs manually.
 2. **Preview validation** — for links, the app fetches playlist metadata and verifies tracks are accessible before you hit analyse.
-3. **AI mood analysis** — track names and artists are sent to [DeepSeek AI](https://deepseek.com), which returns a mood summary, colour palette, themes, keywords, and audio profile.
-4. **Visual moodboard** — results are rendered as an interactive moodboard with a shattered-glass colour cube, album art collage, theme list, keyword pills, and audio profile meters.
-5. **Try a new variation** — re-run the analysis on the same playlist for a different AI interpretation.
+3. **Song matching** (file & manual) — songs without artists are searched via Spotify. Suggestions appear with ✅ confirm / ✕ reject buttons. Unmatched songs are highlighted in red and block analysis until resolved.
+4. **AI mood analysis** — track names and artists are sent to [DeepSeek AI](https://deepseek.com), which returns a mood summary, colour palette, themes, keywords, and audio profile.
+5. **Visual moodboard** — results are rendered as an interactive moodboard with a shattered-glass colour cube, album art collage, theme list, keyword pills, and audio profile meters.
+6. **Playlist history** — successful analyses are saved to local history with deduplication. Problematic playlists are never saved. Each chip has a visible ✕ button to delete.
+7. **Try a new variation** — re-run the analysis on the same playlist for a different AI interpretation.
 
 ---
 
@@ -85,19 +87,20 @@ docker compose up --build
 │   └── globals.css           # Global styles & shadow utilities
 ├── components/
 │   ├── PlaylistInput.tsx     # Link input with Spotify/YouTube auto-detection
-│   ├── FileUpload.tsx        # CSV/text file upload
-│   ├── SongList.tsx          # Manual song entry
+│   ├── FileUpload.tsx        # CSV/text upload with column mapping & artist resolution
+│   ├── SongList.tsx          # Manual song entry with unmatched highlighting
 │   ├── MoodboardResult.tsx   # Full moodboard visualisation
 │   ├── PaletteVisual.tsx     # Shattered-glass colour cube SVG
 │   ├── NavBar.tsx            # Settings navigation
 │   ├── icons.tsx             # Flat SVG icon components
 │   └── profile/
 │       ├── ProfilePanel.tsx  # Credential input form
-│       └── PlaylistHistory.tsx # Recent playlists chips
+│       └── PlaylistHistory.tsx # Recent playlists with delete & deduplication
 ├── lib/
-│   ├── spotify.ts            # Spotify API helpers
+│   ├── spotify.ts            # Spotify API helpers (fuzzy word-overlap search)
 │   ├── youtube.ts            # YouTube API helpers
 │   ├── deepseek.ts           # DeepSeek AI prompt & API call
+│   ├── contrast.ts           # Accessibility contrast enforcement
 │   └── stores/               # React Context (credentials, playlists)
 └── public/                   # Static assets
 ```
