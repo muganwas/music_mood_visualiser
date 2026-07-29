@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
-import { MusicIcon } from "./icons";
+import { MusicIcon, WarningIcon, CheckIcon, CloseIcon } from "./icons";
 
 // ── Types ────────────────────────────────────────────────────
 
 interface ResolvedSong {
   name: string;
   artist: string;
+  notFound?: boolean;
+  match?: { name: string; artist: string }; // Spotify suggestion awaiting confirmation
 }
 
 interface Props {
@@ -22,6 +24,7 @@ interface Props {
     spotifyRefreshToken: string;
     spotifyMarket: string;
   };
+  unmatchedSongs?: string[];
 }
 
 // ── Parsing ──────────────────────────────────────────────────
@@ -105,7 +108,7 @@ function parseSongs(text: string): ResolvedSong[] {
 
 // ── Component ────────────────────────────────────────────────
 
-export default function FileUpload({ onAnalyze, credentials }: Props) {
+export default function FileUpload({ onAnalyze, credentials, unmatchedSongs }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [songs, setSongs] = useState<ResolvedSong[]>([]);
@@ -113,6 +116,9 @@ export default function FileUpload({ onAnalyze, credentials }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const missingArtist = songs.filter((s) => !s.artist).length;
+  const unmatched = songs.filter((s) => s.notFound).length;
+  const autoResolved = songs.filter((s) => s.artist && !s.notFound).length;
+  const pendingConfirmation = songs.filter((s) => s.match).length;
 
   const processFile = (file: File) => {
     setFileName(file.name);
@@ -136,12 +142,13 @@ export default function FileUpload({ onAnalyze, credentials }: Props) {
     if (file) processFile(file);
   };
 
-  /** Search Spotify for each song missing an artist */
+  /** Search Spotify for each song missing an artist — shows suggestions for confirmation */
   const handleResolveArtists = async () => {
     setResolving(true);
     const updated = await Promise.all(
       songs.map(async (s) => {
-        if (s.artist) return s;
+        if (s.artist || s.match) return s;
+        // Clear previous notFound — re-search on corrected title
         try {
           const res = await fetch(
             `/api/spotify?q=${encodeURIComponent(s.name)}`,
@@ -156,14 +163,30 @@ export default function FileUpload({ onAnalyze, credentials }: Props) {
           );
           const data = await res.json();
           if (data.track) {
-            return { name: data.track.name, artist: data.track.artist };
+            // Store as suggestion — user must confirm
+            return { ...s, match: { name: data.track.name, artist: data.track.artist } };
           }
         } catch { /* keep as-is */ }
-        return s;
+        return { ...s, notFound: true };
       }),
     );
     setSongs(updated);
     setResolving(false);
+  };
+
+  const confirmMatch = (i: number) => {
+    const next = [...songs];
+    const s = next[i];
+    if (s.match) {
+      next[i] = { name: s.match.name, artist: s.match.artist };
+    }
+    setSongs(next);
+  };
+
+  const rejectMatch = (i: number) => {
+    const next = [...songs];
+    next[i] = { ...next[i], match: undefined, notFound: true };
+    setSongs(next);
   };
 
   const updateArtist = (i: number, artist: string) => {
@@ -171,8 +194,6 @@ export default function FileUpload({ onAnalyze, credentials }: Props) {
     next[i] = { ...next[i], artist };
     setSongs(next);
   };
-
-  const autoResolved = songs.filter((s) => s.artist).length;
 
   return (
     <div className="space-y-5">
@@ -229,6 +250,16 @@ export default function FileUpload({ onAnalyze, credentials }: Props) {
                   · {autoResolved} with artist
                 </span>
               )}
+              {pendingConfirmation > 0 && (
+                <span className="ml-1 text-brand-400">
+                  · {pendingConfirmation} to confirm
+                </span>
+              )}
+              {unmatched > 0 && (
+                <span className="ml-1 text-amber-400">
+                  · {unmatched} not found
+                </span>
+              )}
             </p>
             {missingArtist > 0 && (
               <button
@@ -238,27 +269,55 @@ export default function FileUpload({ onAnalyze, credentials }: Props) {
                 className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-1.5 text-xs text-gray-300 hover:bg-white/10 transition disabled:opacity-50"
               >
                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                {resolving ? "Searching…" : `Find artists for ${missingArtist}`}
+                {resolving ? "Searching…" : `Find artists${pendingConfirmation > 0 ? ` (${pendingConfirmation} pending)` : ""}`}
               </button>
             )}
           </div>
 
           <ul className="max-h-52 space-y-0.5 overflow-y-auto rounded-lg bg-white/[0.02] p-2">
-            {songs.slice(0, 30).map((s, i) => (
-              <li key={i} className="flex items-center gap-2 rounded px-2 py-1 text-sm group hover:bg-white/5">
-                <MusicIcon className="h-3 w-3 shrink-0 text-gray-500" />
-                <span className="truncate text-gray-200">{s.name}</span>
+            {songs.slice(0, 30).map((s, i) => {
+              const isUnmatched = unmatchedSongs?.some(
+                (u) => u.toLowerCase() === s.name.toLowerCase(),
+              );
+              return (
+              <li key={i} className={`flex items-center gap-2 rounded px-2 py-1 text-sm group hover:bg-white/5 ${isUnmatched ? "bg-red-500/10 ring-1 ring-red-500/30" : ""}`}>
+                {(s.notFound || isUnmatched) ? (
+                  <WarningIcon className="h-3 w-3 shrink-0 text-amber-500" />
+                ) : (
+                  <MusicIcon className="h-3 w-3 shrink-0 text-gray-500" />
+                )}
+                <span className={`truncate ${(s.notFound || isUnmatched) ? "text-amber-300" : "text-gray-200"}`}>{s.name}</span>
                 <span className="text-gray-600">—</span>
-                <input
-                  value={s.artist}
-                  onChange={(e) => updateArtist(i, e.target.value)}
-                  placeholder="Unknown artist"
-                  className={`min-w-0 flex-1 rounded bg-transparent px-1 py-0.5 text-xs outline-none transition focus:bg-white/5 ${
-                    s.artist ? "text-gray-400" : "text-amber-500 placeholder-gray-700"
-                  }`}
-                />
+
+                {/* Pending confirmation: show suggestion with confirm/reject */}
+                {s.match ? (
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                    <span className="truncate text-xs text-brand-300">{s.match.name} · {s.match.artist}</span>
+                    <button
+                      type="button"
+                      onClick={() => confirmMatch(i)}
+                      className="shrink-0 rounded p-0.5 text-green-400 hover:bg-green-500/10"
+                      title="Confirm — yes, this is my song"
+                    ><CheckIcon className="h-3 w-3" /></button>
+                    <button
+                      type="button"
+                      onClick={() => rejectMatch(i)}
+                      className="shrink-0 rounded p-0.5 text-red-400 hover:bg-red-500/10"
+                      title="Reject — not my song"
+                    ><CloseIcon className="h-3 w-3" /></button>
+                  </span>
+                ) : (
+                  <input
+                    value={s.artist}
+                    onChange={(e) => updateArtist(i, e.target.value)}
+                    placeholder={s.notFound || isUnmatched ? "Not found — check title/artist" : "Unknown artist"}
+                    className={`min-w-0 flex-1 rounded bg-transparent px-1 py-0.5 text-xs outline-none transition focus:bg-white/5 ${
+                      s.notFound || isUnmatched ? "text-amber-400 placeholder-amber-700" : s.artist ? "text-gray-400" : "text-amber-500 placeholder-gray-700"
+                    }`}
+                  />
+                )}
               </li>
-            ))}
+            )})}
             {songs.length > 30 && (
               <li className="px-2 py-1 text-xs text-gray-600">
                 …and {songs.length - 30} more
@@ -274,6 +333,7 @@ export default function FileUpload({ onAnalyze, credentials }: Props) {
         className="w-full rounded-xl bg-brand-500 py-3 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40"
       >
         🎧 Analyze {songs.length > 0 ? `${songs.length} ` : ""}Songs
+        {pendingConfirmation > 0 && ` (${pendingConfirmation} unconfirmed)`}
       </button>
     </div>
   );

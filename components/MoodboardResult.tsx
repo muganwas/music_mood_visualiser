@@ -17,7 +17,7 @@ interface MoodAnalysis {
 }
 
 interface Props {
-  data: MoodAnalysis & { trackCount: number; albumArts: string[] };
+  data: MoodAnalysis & { trackCount: number; unmatchedCount?: number; albumArts: string[] };
   onRegenerate: () => void;
 }
 
@@ -30,7 +30,7 @@ const METER_WIDTH: Record<string, string> = {
 };
 
 export default function MoodboardResult({ data, onRegenerate }: Props) {
-  const { moodSummary, topThemes, audioProfile, palette, keywords, trackCount, albumArts } = data;
+  const { moodSummary, topThemes, audioProfile, palette, keywords, trackCount, unmatchedCount, albumArts } = data;
 
   const readableAccent = ensureContrast(palette[0] ?? "#6c5ce7");
 
@@ -47,6 +47,11 @@ export default function MoodboardResult({ data, onRegenerate }: Props) {
         <p className="mt-2 text-sm text-gray-500">
           {trackCount} tracks analysed
         </p>
+        {unmatchedCount ? (
+          <p className="mt-1 text-xs text-amber-400">
+            {unmatchedCount} track{unmatchedCount > 1 ? "s" : ""} could not be matched — results may be less accurate
+          </p>
+        ) : null}
       </div>
 
       {/* ── Palette + Album art side by side ── */}

@@ -30,6 +30,9 @@ export default function Home() {
   const { credentials } = useCredentials();
   const { addPlaylist, addFilePlaylist } = usePlaylists();
 
+  // Hold playlist preview info until analysis succeeds (don't save prematurely)
+  const pendingPlaylistRef = useRef<{ id: string; name: string; image: string; owner: string; trackCount: number; url: string; source: "spotify" | "youtube" } | null>(null);
+
   // Smooth-scroll to result when analysis finishes (custom slower easing)
   useEffect(() => {
     if (result && resultRef.current) {
@@ -75,19 +78,23 @@ export default function Home() {
       const data = await res.json();
       setResult(data);
 
-      // Save file-based playlists to history (content-deduplicated)
-      const p = payload as { type?: string; fileName?: string; songs?: { name: string; artist: string }[] };
-      if (p.type === "file" && p.fileName && p.songs?.length) {
-        const fp = p.songs
-          .map((s) => s.name.toLowerCase().trim())
-          .sort()
-          .join("|");
-        // Simple hash for compact storage
-        let hash = 0;
-        for (let i = 0; i < fp.length; i++) {
-          hash = ((hash << 5) - hash + fp.charCodeAt(i)) | 0;
+      // Save successful playlists to history (only on success, never on error)
+      if (res.ok && !data.error && !data.unmatched) {
+        const p = payload as { type?: string; fileName?: string; songs?: { name: string; artist: string }[]; url?: string; source?: "spotify" | "youtube" };
+        if (p.type === "file" && p.fileName && p.songs?.length) {
+          const fp = p.songs
+            .map((s) => s.name.toLowerCase().trim())
+            .sort()
+            .join("|");
+          let hash = 0;
+          for (let i = 0; i < fp.length; i++) {
+            hash = ((hash << 5) - hash + fp.charCodeAt(i)) | 0;
+          }
+          addFilePlaylist(p.fileName, p.songs.length, String(hash), p.songs);
+        } else if (p.type === "link" && pendingPlaylistRef.current) {
+          addPlaylist({ ...pendingPlaylistRef.current, type: "link" });
+          pendingPlaylistRef.current = null;
         }
-        addFilePlaylist(p.fileName, p.songs.length, String(hash), p.songs);
       }
     } catch (err) {
       console.error("Analysis failed", err);
@@ -99,7 +106,8 @@ export default function Home() {
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
 
   const handlePlaylistFound = (info: { id: string; name: string; image: string; owner: string; trackCount: number; url: string; source: "spotify" | "youtube" }) => {
-    addPlaylist({ ...info, type: "link" });
+    // Only cache the preview — save to history after analysis succeeds
+    pendingPlaylistRef.current = info;
   };
 
   const handleHistorySelect = (p: SavedPlaylist) => {
@@ -113,6 +121,8 @@ export default function Home() {
       handleAnalyze({ type: "link", url: p.url, source: p.source });
     }
   };
+
+  const unmatchedSongs: string[] = (result as { unmatched?: string[] } | null)?.unmatched ?? [];
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-20">
@@ -165,8 +175,8 @@ export default function Home() {
             onPlaylistFound={handlePlaylistFound}
           />
         )}
-        {mode === "upload" && <FileUpload onAnalyze={handleAnalyze} credentials={credentials} />}
-        {mode === "manual" && <SongList onAnalyze={handleAnalyze} />}
+        {mode === "upload" && <FileUpload onAnalyze={handleAnalyze} credentials={credentials} unmatchedSongs={unmatchedSongs} />}
+        {mode === "manual" && <SongList onAnalyze={handleAnalyze} unmatchedSongs={unmatchedSongs} />}
       </section>
 
       {/* Loading */}

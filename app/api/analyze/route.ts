@@ -40,9 +40,8 @@ export async function POST(req: NextRequest) {
       // Accept pre-resolved {name, artist} pairs or plain strings
       tracks = rawSongs.map((s) => {
         if (typeof s === "object" && "name" in s) {
-          return { name: s.name, artist: s.artist || "Unknown" };
+          return { name: s.name, artist: s.artist || "" };
         }
-        // Plain string — try Spotify enrichment
         return { name: s as string, artist: "" };
       });
 
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
           const match = await searchTrack(t.name, creds);
           return match
             ? { name: match.name, artist: match.artist }
-            : { name: t.name, artist: "Unknown" };
+            : t; // leave artist empty — don't guess
         })
       );
       tracks = enriched;
@@ -99,8 +98,20 @@ export async function POST(req: NextRequest) {
       albumArts = [...new Set(arts.filter(Boolean))];
     }
 
+    const unmatchedTitles = tracks.filter((t) => !t.artist).map((t) => t.name);
+    const unmatchedCount = unmatchedTitles.length;
+
+    // Block analysis if any tracks are unmatched — user should fix first
+    if (unmatchedCount > 0 && (type === "file" || type === "manual")) {
+      return NextResponse.json({
+        error: `${unmatchedCount} track${unmatchedCount > 1 ? "s" : ""} could not be matched. Please verify the title and artist, or remove the song.`,
+        unmatched: unmatchedTitles,
+      }, { status: 422 });
+    }
+
     return NextResponse.json({
       trackCount: tracks.length,
+      unmatchedCount,
       albumArts: albumArts.slice(0, 50),
       ...analysis,
     });

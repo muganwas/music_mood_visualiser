@@ -67,8 +67,9 @@ export default function PlaylistHistory({ onSelect, activeId }: Props) {
             <span className={`text-xs ${isActive ? "text-brand-300" : "text-gray-600"}`}>{p.trackCount}</span>
             <span
               onClick={(e) => { e.stopPropagation(); removePlaylist(p.id); }}
-              className="ml-1 rounded-full p-0.5 text-gray-600 opacity-0 group-hover:opacity-100 hover:text-red-400 transition cursor-pointer"
+              className="ml-1 rounded-full p-0.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition cursor-pointer"
               aria-label="Remove"
+              title="Remove playlist"
             >
               <CloseIcon className="h-3 w-3" />
             </span>

@@ -243,21 +243,33 @@ export async function searchTrack(
   const token = await getAccessToken(creds);
 
   const searchRes = await fetch(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`,
+    `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=3`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
 
   if (!searchRes.ok) return null;
 
   const data = await searchRes.json();
-  const t = data.tracks?.items?.[0];
-  if (!t) return null;
+  const items = data.tracks?.items ?? [];
+  if (items.length === 0) return null;
 
-  return {
-    name: t.name,
-    artist: t.artists?.map((a: { name: string }) => a.name).join(", ") ?? "Unknown",
-    album: t.album?.name ?? "Unknown",
-    albumArt: t.album?.images?.[0]?.url ?? "",
-    previewUrl: t.preview_url ?? null,
-  };
+  // Pick the best match — require at least one shared word between query and result
+  const queryWords = query.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(w => w.length > 1);
+
+  for (let i = 0; i < Math.min(items.length, 3); i++) {
+    const t = items[i] as { name: string; artists: { name: string }[]; album: { name: string; images: { url: string }[] }; preview_url: string | null };
+    const nameWords = t.name.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/);
+    const shared = queryWords.some((qw) => nameWords.some((nw) => nw === qw || nw.includes(qw) || qw.includes(nw)));
+    if (shared || queryWords.length === 0) {
+      return {
+        name: t.name,
+        artist: t.artists?.map((a: { name: string }) => a.name).join(", ") ?? "Unknown",
+        album: t.album?.name ?? "Unknown",
+        albumArt: t.album?.images?.[0]?.url ?? "",
+        previewUrl: t.preview_url ?? null,
+      };
+    }
+  }
+
+  return null; // no reasonable match found
 }

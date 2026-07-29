@@ -4,14 +4,16 @@ import { useState, useRef, KeyboardEvent } from "react";
 
 interface Props {
   onAnalyze: (payload: { type: "manual"; songs: string[] }) => void;
+  unmatchedSongs?: string[];
 }
 
 import { CloseIcon } from "./icons";
 
-export default function SongList({ onAnalyze }: Props) {
+export default function SongList({ onAnalyze, unmatchedSongs }: Props) {
   // Always start with one empty input; reveal next only when the last is non-empty.
   const [songs, setSongs] = useState<string[]>([""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const ignoreNextBlur = useRef(false);
 
   const lastIndex = songs.length - 1;
 
@@ -23,6 +25,10 @@ export default function SongList({ onAnalyze }: Props) {
 
   // Reveal a new row when the user finishes typing in the last row.
   const handleBlur = (index: number) => {
+    if (ignoreNextBlur.current) {
+      ignoreNextBlur.current = false;
+      return;
+    }
     if (index === lastIndex && songs[index].trim() !== "") {
       setSongs((prev) => [...prev, ""]);
     }
@@ -54,7 +60,11 @@ export default function SongList({ onAnalyze }: Props) {
       </p>
 
       <ul className="space-y-2">
-        {songs.map((song, i) => (
+        {songs.map((song, i) => {
+          const isUnmatched = song.trim() && unmatchedSongs?.some(
+            (u) => u.toLowerCase() === song.trim().toLowerCase(),
+          );
+          return (
           <li key={i} className="flex items-center gap-2">
             <span className="text-xs text-gray-600 w-6 tabular-nums">
               {i + 1}.
@@ -66,8 +76,12 @@ export default function SongList({ onAnalyze }: Props) {
               onChange={(e) => handleChange(i, e.target.value)}
               onBlur={() => handleBlur(i)}
               onKeyDown={(e) => handleKeyDown(i, e)}
-              placeholder="Song title…"
-              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-gray-500 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              placeholder={isUnmatched ? "Not found — check title" : "Song title…"}
+              className={`flex-1 rounded-xl border px-4 py-3 text-white outline-none transition focus:ring-2 focus:ring-brand-500/20 ${
+                isUnmatched
+                  ? "border-red-500/50 bg-red-500/10 focus:border-red-400 placeholder-red-400/50"
+                  : "border-white/10 bg-white/5 focus:border-brand-500 placeholder-gray-500"
+              }`}
             />
             {songs.length > 1 && (
               <button
@@ -79,11 +93,16 @@ export default function SongList({ onAnalyze }: Props) {
               </button>
             )}
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       <button
-        onClick={() => onAnalyze({ type: "manual", songs: filledSongs })}
+        type="button"
+        onMouseDown={() => {
+          ignoreNextBlur.current = true;
+          onAnalyze({ type: "manual", songs: filledSongs });
+        }}
         disabled={filledSongs.length === 0}
         className="w-full rounded-xl bg-brand-500 py-3 font-semibold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40"
       >
