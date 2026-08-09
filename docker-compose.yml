@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.dev
     container_name: music-mood-app
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     env_file:
       - .env.local
     volumes:
